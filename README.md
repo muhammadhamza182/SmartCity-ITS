@@ -16,7 +16,6 @@ Urban traffic congestion caused by unauthorized or illegal parking in restricted
 * *⏰ Time-Based Enforcement Rules:* Dynamic rule engine that accounts for rush hours and off-hours, ensuring alerts are only triggered during active enforcement windows.
 * *🔥 Traffic Density Heatmaps:* Visual overlay layer to identify recurring bottleneck zones and high-congestion areas.
 * *📊 Live Analytics Dashboard:* Interactive Streamlit layout featuring live metric cards, live vehicle type breakdown charts (Cars, Buses, Trucks), and real-time alert logs.
-* *📥 Report Generation:* Automatically logs violations with timestamps and allows operators to download complete reports in CSV format.
 
 ---
 
