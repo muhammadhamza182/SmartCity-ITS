@@ -28,7 +28,7 @@ else:
     video_path = st.sidebar.text_input("Enter RTSP Stream Link:", "rtsp://username:password@ip_address/stream")
 
 st.sidebar.markdown("---")
-st.sidebar.header("⏰ Enforcement Rules (Feature 2)")
+st.sidebar.header("⏰ Enforcement Rules")
 enforce_hours = st.sidebar.checkbox("Enable Time-Based Restrictions", value=True)
 start_hour = st.sidebar.slider("Active Start Hour (24h)", 0, 23, 8)
 end_hour = st.sidebar.slider("Active End Hour (24h)", 0, 23, 20)
@@ -54,12 +54,12 @@ with m3:
 
 st.divider()
 
-# 📐 Main UI Layout (Video on left, Analytics & Alerts on right)
+# 📐 Main UI Layout
 col1, col2 = st.columns([2, 1])
 with col1:
     frame_window = st.empty()
 with col2:
-    st.subheader("📊 Vehicle Type Breakdown (Feature 3)")
+    st.subheader("📊 Vehicle Type Breakdown")
     chart_placeholder = st.empty()
     
     st.subheader("📋 Live Dispatch Alerts")
@@ -78,9 +78,14 @@ if run_system and video_path:
         alert_logs = []      
         export_data = []     
         
+        # 🔥 Fix: First frame read kar ke pehle resize karein taake heatmap layer ka size match ho jaye
         success, first_frame = cap.read()
         if success:
+            first_frame = cv2.resize(first_frame, (640, 360))
             heatmap_layer = np.zeros_like(first_frame, dtype=np.uint8)
+        
+        # Video dobara start se parhne ke liye capture ko reset karna zaroori hai agar pehla frame parh lia ho
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
         
         while cap.isOpened() and not stop_system:
             success, frame = cap.read()
@@ -88,13 +93,11 @@ if run_system and video_path:
                 st.warning("Feed ended.")
                 break
             
-            # ⚡ SPEED OPTIMIZATION: Frame ko chota karna taake tracking fast ho jaye
+            # ⚡ Speed Optimization: Frame resizing
             frame = cv2.resize(frame, (640, 360))
+            scaled_polygon = (BUS_LANE_POLYGON * 0.6).astype(np.int32)
             
-            # Scale polygon coordinates accordingly if needed, or keep standard size
-            scaled_polygon = (BUS_LANE_POLYGON * 0.6).astype(np.int32) # Scale down to 640x360 ratio
-            
-            # Check Time-Based Logic (Feature 2)
+            # Time-Based Logic Check
             current_hour = datetime.now().hour
             is_enforcement_active = True
             if enforce_hours:
@@ -104,16 +107,13 @@ if run_system and video_path:
             results = model.track(frame, classes=[2, 5, 7], conf=0.4, persist=True)
             annotated_frame = frame.copy()
             
-            # Draw Zone
             zone_color = (255, 0, 0) if is_enforcement_active else (128, 128, 128)
             cv2.polylines(annotated_frame, [scaled_polygon], isClosed=True, color=zone_color, thickness=2)
             zone_text = "RESTRICTED CLEARWAY" if is_enforcement_active else "CLEARWAY (OFF-HOURS)"
-            cv2.putText(annotated_frame, zone_text, (200, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.5, zone_color, 2)
+            cv2.putText(annotated_frame, zone_text, (150, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.5, zone_color, 2)
             
             vehicles_in_lane = 0
             violations = 0
-            
-            # Vehicle Type Counters for Feature 3
             type_counts = {"Car": 0, "Bus": 0, "Truck": 0}
             
             if results[0].boxes.id is not None:
@@ -127,7 +127,6 @@ if run_system and video_path:
                     x1, y1, x2, y2 = map(int, box)
                     cx, cy = int((x1 + x2) / 2), int((y1 + y2) / 2) 
                     
-                    # Count types (2=Car, 5=Bus, 7=Truck in COCO dataset)
                     if cls_id == 2: type_counts["Car"] += 1
                     elif cls_id == 5: type_counts["Bus"] += 1
                     elif cls_id == 7: type_counts["Truck"] += 1
@@ -139,7 +138,6 @@ if run_system and video_path:
                     color = (0, 255, 0) 
                     label = f"ID:{track_id}"
                     
-                    # Stationary Logic
                     if track_id in vehicle_history:
                         last_cx, last_cy, stat_frames = vehicle_history[track_id]
                         distance = np.sqrt((cx - last_cx)**2 + (cy - last_cy)**2)
@@ -152,7 +150,6 @@ if run_system and video_path:
                         
                     vehicle_history[track_id] = (cx, cy, stat_frames)
 
-                    # Alert Logic (Only active during enforcement hours)
                     if is_inside and is_enforcement_active:
                         vehicles_in_lane += 1
                         if stat_frames > obstruction_threshold: 
@@ -173,7 +170,6 @@ if run_system and video_path:
             if show_heatmap:
                 annotated_frame = cv2.addWeighted(annotated_frame, 0.7, heatmap_layer, 0.3, 0)
 
-            # Update Metrics & Live Chart (Feature 3)
             lane_occupants_metric.metric("Vehicles in Clearway", str(vehicles_in_lane))
             violations_metric.metric("🚨 Active Obstructions", str(violations))
             
