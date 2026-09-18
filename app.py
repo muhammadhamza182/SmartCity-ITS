@@ -57,8 +57,7 @@ if run_system:
             frame_rgb = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
             
             # 7. Live video ko UI mein update karna
-            frame_window.image(frame_rgb, channels="RGB", use_column_width=True)
-            
+frame_window.image(frame_rgb, channels="RGB", use_container_width=True)            
         cap.release()
         
     except Exception as e:
